@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hangman</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        #game-container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #word-display {
+            font-size: 2em;
+            margin: 20px 0;
+            letter-spacing: 5px;
+        }
+        #guesses-left {
+            font-size: 1.2em;
+            color: #333;
+        }
+        #keyboard {
+            display: grid;
+            grid-template-columns: repeat(10, 40px);
+            gap: 5px;
+            margin: 20px 0;
+        }
+        .key {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #333;
+            background-color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .key:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+        }
+        #message {
+            font-size: 1.5em;
+            margin: 20px 0;
+        }
+        #restart {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        #restart:hover {
+            background-color: #45a049;
+        }
+        canvas {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>Hangman</h1>
+        <canvas id="hangman-canvas" width="200" height="200"></canvas>
+        <div id="word-display"></div>
+        <div id="guesses-left">Verbleibende Versuche: 6</div>
+        <div id="keyboard"></div>
+        <div id="message"></div>
+        <button id="restart" style="display: none;">Neues Spiel</button>
+    </div>
+
+    <script>
+        const words = [
+            "Petschk", "Szolderits", "Schularbeit", "Spanien", "Norwegen",
+            "Kylling", "Feuerlöscher", "Computer", "Fortnite", "Allergie",
+            "Kaffee", "Blutgruppe", "Trinitrotoluol", "Turbokuh", "Mortis",
+            "Moco", "Ledian", "Notar", "Krankenhaus", "Fluglotse",
+            "Rubin", "Katastrophe", "Hakball", "Hochofen", "Jahresbericht", "Handelsakademie", "Kommunismus"
+        ];
+        let selectedWord = "";
+        let guessedLetters = [];
+        let wrongGuesses = 0;
+        const maxGuesses = 6;
+
+        const canvas = document.getElementById("hangman-canvas");
+        const ctx = canvas.getContext("2d");
+        const wordDisplay = document.getElementById("word-display");
+        const guessesLeftDisplay = document.getElementById("guesses-left");
+        const keyboard = document.getElementById("keyboard");
+        const message = document.getElementById("message");
+        const restartButton = document.getElementById("restart");
+
+        function drawHangman() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "#333";
+            ctx.lineWidth = 2;
+
+            // Galgen
+            if (wrongGuesses > 0) {
+                ctx.beginPath();
+                ctx.moveTo(20, 180);
+                ctx.lineTo(180, 180);
+                ctx.stroke();
+            }
+            if (wrongGuesses > 1) {
+                ctx.beginPath();
+                ctx.moveTo(50, 180);
+                ctx.lineTo(50, 20);
+                ctx.stroke();
+            }
+            if (wrongGuesses > 2) {
+                ctx.beginPath();
+                ctx.moveTo(50, 20);
+                ctx.lineTo(120, 20);
+                ctx.stroke();
+            }
+            if (wrongGuesses > 3) {
+                ctx.beginPath();
+                ctx.moveTo(120, 20);
+                ctx.lineTo(120, 50);
+                ctx.stroke();
+            }
+            // Kopf
+            if (wrongGuesses > 4) {
+                ctx.beginPath();
+                ctx.arc(120, 70, 20, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            // Körper
+            if (wrongGuesses > 5) {
+                ctx.beginPath();
+                ctx.moveTo(120, 90);
+                ctx.lineTo(120, 130);
+                ctx.stroke();
+            }
+        }
+
+        function displayWord() {
+            const display = selectedWord
+                .split("")
+                .map(letter => (guessedLetters.includes(letter.toUpperCase()) ? letter : "_"))
+                .join(" ");
+            wordDisplay.textContent = display;
+        }
+
+        function createKeyboard() {
+            keyboard.innerHTML = "";
+            for (let i = 65; i <= 90; i++) {
+                const letter = String.fromCharCode(i);
+                const button = document.createElement("button");
+                button.textContent = letter;
+                button.className = "key";
+                button.dataset.letter = letter; // Füge data-letter hinzu
+                button.addEventListener("click", () => guessLetter(letter));
+                keyboard.appendChild(button);
+            }
+        }
+
+        function guessLetter(letter) {
+            guessedLetters.push(letter);
+            // Deaktiviere die Taste mit data-letter
+            const button = document.querySelector(`button[data-letter="${letter}"]`);
+            if (button) button.disabled = true;
+            if (!selectedWord.toUpperCase().includes(letter)) {
+                wrongGuesses++;
+                guessesLeftDisplay.textContent = `Verbleibende Versuche: ${maxGuesses - wrongGuesses}`;
+                drawHangman();
+            }
+            displayWord();
+            checkGameStatus();
+        }
+
+        function checkGameStatus() {
+            const currentWord = selectedWord
+                .split("")
+                .map(letter => (guessedLetters.includes(letter.toUpperCase()) ? letter : "_"))
+                .join("");
+            if (currentWord === selectedWord) {
+                message.textContent = "Gewonnen! Das Wort war: " + selectedWord;
+                endGame();
+            } else if (wrongGuesses >= maxGuesses) {
+                message.textContent = "Verloren! Das Wort war: " + selectedWord;
+                endGame();
+            }
+        }
+
+        function endGame() {
+            document.querySelectorAll(".key").forEach(button => button.disabled = true);
+            restartButton.style.display = "block";
+        }
+
+        function startGame() {
+            selectedWord = words[Math.floor(Math.random() * words.length)];
+            guessedLetters = [];
+            wrongGuesses = 0;
+            guessesLeftDisplay.textContent = `Verbleibende Versuche: ${maxGuesses}`;
+            message.textContent = "";
+            restartButton.style.display = "none";
+            drawHangman();
+            displayWord();
+            createKeyboard();
+        }
+
+        restartButton.addEventListener("click", startGame);
+
+        // Starte das Spiel
+        startGame();
+    </script>
+</body>
+</html>
