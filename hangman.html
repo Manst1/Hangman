@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hangman</title>
-    <link rel="icon" type="image/png" href="https://i.imgur.com/StHgedo.png">	    
+    <link rel="icon" type="image/png" href="https://i.imgur.com/StHgedo.png">	    
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -14,29 +14,51 @@
             background-color: #f0f0f0;
             margin: 0;
             padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
         }
+
+        body.dark-mode {
+            background-color: #333;
+            color: #f0f0f0;
+        }
+
         #game-container {
             text-align: center;
             background-color: white;
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            transition: background-color 0.3s, box-shadow 0.3s;
         }
+
+        body.dark-mode #game-container {
+            background-color: #444;
+            box-shadow: 0 0 10px rgba(255,255,255,0.1);
+        }
+
         #word-display {
             font-size: 2em;
             margin: 20px 0;
             letter-spacing: 5px;
         }
+
         #guesses-left {
             font-size: 1.2em;
             color: #333;
+            transition: color 0.3s;
         }
+
+        body.dark-mode #guesses-left {
+            color: #ccc;
+        }
+
         #keyboard {
             display: grid;
             grid-template-columns: repeat(10, 40px);
             gap: 5px;
             margin: 20px 0;
         }
+
         .key {
             width: 40px;
             height: 40px;
@@ -47,15 +69,34 @@
             justify-content: center;
             cursor: pointer;
             border-radius: 5px;
+            color: #333;
+            transition: background-color 0.3s, border-color 0.3s, color 0.3s;
         }
+
+        body.dark-mode .key {
+            border-color: #f0f0f0;
+            background-color: #666;
+            color: #f0f0f0;
+        }
+
         .key:disabled {
             background-color: #999;
             cursor: not-allowed;
+            border-color: #666;
+            color: #555;
         }
+
+        body.dark-mode .key:disabled {
+            background-color: #333;
+            border-color: #555;
+            color: #999;
+        }
+        
         #message {
             font-size: 1.5em;
             margin: 20px 0;
         }
+
         #restart {
             padding: 10px 20px;
             font-size: 1em;
@@ -64,12 +105,34 @@
             color: white;
             border: none;
             border-radius: 5px;
+            transition: background-color 0.3s;
         }
+
         #restart:hover {
             background-color: #45a049;
         }
+
         canvas {
             margin: 20px 0;
+            transition: border-color 0.3s;
+        }
+
+        #darkModeButton {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #555;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        #darkModeButton:hover {
+            background-color: #666;
         }
     </style>
 </head>
@@ -83,6 +146,7 @@
         <div id="message"></div>
         <button id="restart" style="display: none;">Neues Spiel</button>
     </div>
+    <button id="darkModeButton" onclick="toggleDarkMode()">Dark Mode</button>
 
     <script>
         const words = [
@@ -90,12 +154,13 @@
             "Kylling", "Feuerlöscher", "Computer", "Fortnite", "Allergie",
             "Kaffee", "Blutgruppe", "Trinitrotoluol", "Turbokuh", "Mortis",
             "Moco", "Ledian", "Notar", "Krankenhaus", "Fluglotse",
-            "Rubin", "Katastrophe", "Hakball", "Hochofen", "Jahresbericht", "Handelsakademie", "Kommunismus", "Schnitzelsemmel", "Albanien", "Auersthal"
+            "Rubin", "Katastrophe", "Hakball", "Hochofen", "Jahresbericht", "Handelsakademie", "Kommunismus", "Schnitzelsemmel", "Albanien", "Auersthal", "Donaudampfschifffahrtsgesellschaft", "Gefängnis", "Cybertruck", "Obi", "Coronavirus"
         ];
         let selectedWord = "";
         let guessedLetters = [];
         let wrongGuesses = 0;
         const maxGuesses = 6;
+        let isDarkMode = false; // Zustand für den Dark Mode
 
         const canvas = document.getElementById("hangman-canvas");
         const ctx = canvas.getContext("2d");
@@ -104,10 +169,11 @@
         const keyboard = document.getElementById("keyboard");
         const message = document.getElementById("message");
         const restartButton = document.getElementById("restart");
+        const darkModeButton = document.getElementById("darkModeButton");
 
         function drawHangman() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = "#333";
+            ctx.strokeStyle = isDarkMode ? "#f0f0f0" : "#333"; // Farbe für Galgen/Figur
             ctx.lineWidth = 2;
 
             // Galgen
@@ -167,6 +233,10 @@
                 button.className = "key";
                 button.dataset.letter = letter; // Füge data-letter hinzu
                 button.addEventListener("click", () => guessLetter(letter));
+                // Stelle den Deaktivierungsstatus wieder her, falls bereits geraten
+                if (guessedLetters.includes(letter)) {
+                    button.disabled = true;
+                }
                 keyboard.appendChild(button);
             }
         }
@@ -176,6 +246,8 @@
             // Deaktiviere die Taste mit data-letter
             const button = document.querySelector(`button[data-letter="${letter}"]`);
             if (button) button.disabled = true;
+
+            // Konvertiere das ausgewählte Wort für den Vergleich in Großbuchstaben
             if (!selectedWord.toUpperCase().includes(letter)) {
                 wrongGuesses++;
                 guessesLeftDisplay.textContent = `Verbleibende Versuche: ${maxGuesses - wrongGuesses}`;
@@ -186,11 +258,11 @@
         }
 
         function checkGameStatus() {
-            const currentWord = selectedWord
-                .split("")
-                .map(letter => (guessedLetters.includes(letter.toUpperCase()) ? letter : "_"))
-                .join("");
-            if (currentWord === selectedWord) {
+            // Erstelle eine Großbuchstabenversion des ausgewählten Wortes, um zu prüfen, ob alle Buchstaben erraten wurden
+            const upperCaseWord = selectedWord.toUpperCase();
+            const wordGuessed = upperCaseWord.split("").every(letter => guessedLetters.includes(letter));
+
+            if (wordGuessed) {
                 message.textContent = "Gewonnen! Das Wort war: " + selectedWord;
                 endGame();
             } else if (wrongGuesses >= maxGuesses) {
@@ -216,6 +288,15 @@
             createKeyboard();
         }
 
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode');
+            // Aktualisiere den Button-Text
+            darkModeButton.textContent = isDarkMode ? 'Light Mode' : 'Dark Mode';
+            // Zeichne den Galgen neu, um die Farbe zu aktualisieren
+            drawHangman();
+        }
+
         restartButton.addEventListener("click", startGame);
 
         // Starte das Spiel
@@ -223,4 +304,3 @@
     </script>
 </body>
 </html>
-
